@@ -1,0 +1,42 @@
+services:
+  backend:
+    image: arkandia-campus-backend:latest
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      - PYTHONPATH=/app
+    networks:
+      - campus_network
+
+  frontend:
+    image: arkandia-campus-frontend:latest
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    networks:
+      - campus_network
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - campus_network
+    depends_on:
+      - backend
+      - frontend
+
+networks:
+  campus_network:
+    driver: bridge
+
+volumes:
+  caddy_data:
+  caddy_config:

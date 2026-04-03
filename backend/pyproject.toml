@@ -1,0 +1,49 @@
+[project]
+name = "arkandia-campus-backend"
+version = "0.1.0"
+description = "Arkandia Campus backend API"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "asyncpg>=0.31.0",
+    "fastapi>=0.115.0",
+    "pydantic-settings>=2.0.0",
+    "pyjwt>=2.8.0",
+    "uvicorn[standard]>=0.30.0",
+]
+
+[dependency-groups]
+dev = [
+    "asyncpg-stubs>=0.31.2",
+    "httpx>=0.27.0",
+    "pyright>=1.1.380",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+    "ruff>=0.6.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "S", "B", "SIM", "RUF"]
+ignore = ["S101", "B008", "S104"]  # S101: allow assert; B008: FastAPI Depends pattern; S104: 0.0.0.0 is intentional
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S", "N"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.pyright]
+pythonVersion = "3.12"
+typeCheckingMode = "strict"
+include = ["app", "tests"]
+venvPath = "."
+venv = ".venv"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
