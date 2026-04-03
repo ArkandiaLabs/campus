@@ -8,46 +8,57 @@ Users who have purchased workshops can log in, watch recorded sessions, download
 
 - **Backend:** FastAPI + asyncpg (Python 3.12), hexagonal architecture
 - **Frontend:** Next.js 16 + Tailwind CSS 4 (TypeScript strict)
-- **Auth:** Supabase Auth (JWT)
-- **Database:** PostgreSQL via Supabase
+- **Auth:** Self-hosted Supabase Auth (GoTrue + Kong)
+- **Database:** Self-hosted PostgreSQL (supabase/postgres image)
 - **Infra:** Docker + Caddy on Hetzner
 
 ## Dev Setup
 
-**Prerequisites:** Python 3.12+, Node 20+, pnpm, uv, Docker
+**Prerequisites:** Docker, pnpm (for running frontend checks locally), uv (for running backend checks locally)
 
 1. Copy env file:
    ```bash
    cp .env.example .env
-   # Fill in SUPABASE_URL, SUPABASE_JWT_SECRET, DATABASE_URL,
-   # NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY
+   # The defaults work out of the box for dev.
+   # Change POSTGRES_PASSWORD and SUPABASE_JWT_SECRET for production.
    ```
 
-2. Apply database migrations to your dev Supabase project:
-   ```bash
-   # See database/README.md for full instructions
-   psql $DATABASE_URL -f database/migrations/001_add_auth_user_id_to_core_client.sql
-   psql $DATABASE_URL -f database/migrations/002_create_ed_content.sql
-   psql $DATABASE_URL -f database/migrations/003_create_ed_content_progress.sql
-   psql $DATABASE_URL -f database/migrations/004_enable_rls_campus.sql
-   ```
-
-3. Seed sample content (update cohort_id first — see `database/seeds/seed.sql`):
-   ```bash
-   psql $DATABASE_URL -f database/seeds/seed.sql
-   ```
-
-4. Link a Supabase Auth user to a client record (after registering):
-   ```sql
-   UPDATE core_client SET auth_user_id = '<auth.users id>' WHERE email = '<email>';
-   ```
-
-5. Start dev servers:
+2. Start all services (Postgres, GoTrue, Kong, backend, frontend):
    ```bash
    make dev
    ```
-   Backend: http://localhost:8000  
-   Frontend: http://localhost:3000
+
+3. In a separate terminal, initialize the database (first time only):
+   ```bash
+   make db-init    # creates business tables + applies campus migrations
+   make db-seed    # optional: sample content (edit cohort_id in seed.sql first)
+   ```
+
+4. Open the app:
+   - Frontend: http://localhost:3000
+   - Backend API: http://localhost:8000
+   - Supabase Auth (Kong): http://localhost:8443
+
+5. After registering a user, link them to a client record:
+   ```bash
+   make db-psql
+   # Then run:
+   # UPDATE core_client SET auth_user_id = '<id from auth.users>' WHERE email = '<email>';
+   ```
+
+### Regenerating the anon key
+
+If you change `SUPABASE_JWT_SECRET`, regenerate the anon key:
+
+```bash
+cd backend && uv run python3 -c "
+import jwt, time
+secret = 'your-new-jwt-secret-here'
+print(jwt.encode({'role':'anon','iss':'supabase','iat':int(time.time()),'exp':int(time.time())+315360000}, secret, algorithm='HS256'))
+"
+```
+
+Paste the output into both `SUPABASE_ANON_KEY` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` in `.env`.
 
 ## Running Checks
 
@@ -80,20 +91,25 @@ pnpm vitest run
 
 1. Build images on the server (or push from CI):
    ```bash
-   make build
-   # or
    docker build -t arkandia-campus-backend ./backend
    docker build -t arkandia-campus-frontend ./frontend
    ```
 
-2. On the Hetzner VPS:
+2. On the Hetzner VPS, create `.env` with production values:
+   - Strong `POSTGRES_PASSWORD` and `SUPABASE_JWT_SECRET`
+   - Regenerated `SUPABASE_ANON_KEY`
+   - `SUPABASE_URL=https://campus.arkandia.co`
+   - `SITE_URL=https://campus.arkandia.co`
+   - `NEXT_PUBLIC_SUPABASE_URL=https://campus.arkandia.co`
+   - SMTP settings for email confirmation (`GOTRUE_SMTP_*`)
+
+3. Start:
    ```bash
    cd /opt/arkandia-campus
-   # Ensure .env is populated
    docker compose -f infra/docker-compose.prod.yml up -d
    ```
 
-3. Caddy handles HTTPS automatically via Let's Encrypt.
+4. Caddy handles HTTPS automatically via Let's Encrypt.
 
 ## Architecture
 

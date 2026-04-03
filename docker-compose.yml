@@ -1,4 +1,59 @@
 services:
+  # ─── Supabase infrastructure ───────────────────────────────────────────────
+
+  db:
+    image: supabase/postgres:15.6.1.145
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - supabase_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  gotrue:
+    image: supabase/gotrue:v2.170.0
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      GOTRUE_API_HOST: "0.0.0.0"
+      GOTRUE_API_PORT: "9999"
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@db:5432/postgres
+      GOTRUE_SITE_URL: ${SITE_URL:-http://localhost:3000}
+      GOTRUE_URI_ALLOW_LIST: ""
+      GOTRUE_JWT_SECRET: ${SUPABASE_JWT_SECRET}
+      GOTRUE_JWT_EXP: "3600"
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
+      GOTRUE_MAILER_AUTOCONFIRM: "true"
+      GOTRUE_DISABLE_SIGNUP: "false"
+      API_EXTERNAL_URL: ${SUPABASE_URL:-http://localhost:8443}
+
+  kong:
+    image: kong:3.4
+    ports:
+      - "8443:8000"
+    depends_on:
+      - gotrue
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /etc/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: request-transformer,cors
+      KONG_LOG_LEVEL: warn
+    volumes:
+      - ./infra/kong.yml:/etc/kong/kong.yml:ro
+
+  # ─── Application ───────────────────────────────────────────────────────────
+
   backend:
     build:
       context: ./backend
@@ -13,7 +68,11 @@ services:
     env_file:
       - .env
     environment:
-      - PYTHONPATH=/app
+      PYTHONPATH: /app
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/postgres
+    depends_on:
+      db:
+        condition: service_healthy
 
   frontend:
     build:
@@ -30,4 +89,8 @@ services:
     env_file:
       - .env
     depends_on:
+      - kong
       - backend
+
+volumes:
+  supabase_db_data:

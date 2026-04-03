@@ -1,8 +1,12 @@
 -- ─── Baseline schema ──────────────────────────────────────────────────────────
 --
--- Creates the tables that already exist in production. Run this ONCE when
--- bootstrapping a new environment (dev, test, CI), then apply the campus
+-- Creates the business tables that already exist in production. Run this ONCE
+-- when bootstrapping a new environment (dev, test, CI), then apply the campus
 -- migrations on top.
+--
+-- Prerequisites: GoTrue must have started at least once before running this,
+-- so that the auth schema and auth.users table exist. Run `make dev` first,
+-- then `make db-init` in a separate terminal.
 --
 -- DO NOT run this in production — these tables are already there.
 -- ─────────────────────────────────────────────────────────────────────────────

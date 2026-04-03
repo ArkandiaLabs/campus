@@ -1,11 +1,80 @@
 services:
+  # ─── Supabase infrastructure ───────────────────────────────────────────────
+
+  db:
+    image: supabase/postgres:15.6.1.145
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - supabase_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - campus_network
+
+  gotrue:
+    image: supabase/gotrue:v2.170.0
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      GOTRUE_API_HOST: "0.0.0.0"
+      GOTRUE_API_PORT: "9999"
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@db:5432/postgres
+      GOTRUE_SITE_URL: ${SITE_URL}
+      GOTRUE_URI_ALLOW_LIST: ""
+      GOTRUE_JWT_SECRET: ${SUPABASE_JWT_SECRET}
+      GOTRUE_JWT_EXP: "3600"
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
+      GOTRUE_MAILER_AUTOCONFIRM: "false"
+      GOTRUE_DISABLE_SIGNUP: "false"
+      GOTRUE_SMTP_HOST: ${GOTRUE_SMTP_HOST}
+      GOTRUE_SMTP_PORT: ${GOTRUE_SMTP_PORT:-587}
+      GOTRUE_SMTP_USER: ${GOTRUE_SMTP_USER}
+      GOTRUE_SMTP_PASS: ${GOTRUE_SMTP_PASS}
+      GOTRUE_SMTP_ADMIN_EMAIL: ${GOTRUE_SMTP_ADMIN_EMAIL:-noreply@arkandia.co}
+      API_EXTERNAL_URL: ${SUPABASE_URL}
+    networks:
+      - campus_network
+
+  kong:
+    image: kong:3.4
+    restart: unless-stopped
+    depends_on:
+      - gotrue
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /etc/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: request-transformer,cors
+      KONG_LOG_LEVEL: warn
+    volumes:
+      - ./kong.yml:/etc/kong/kong.yml:ro
+    networks:
+      - campus_network
+
+  # ─── Application ───────────────────────────────────────────────────────────
+
   backend:
     image: arkandia-campus-backend:latest
     restart: unless-stopped
     env_file:
       - ../.env
     environment:
-      - PYTHONPATH=/app
+      PYTHONPATH: /app
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/postgres
+    depends_on:
+      db:
+        condition: service_healthy
     networks:
       - campus_network
 
@@ -14,6 +83,9 @@ services:
     restart: unless-stopped
     env_file:
       - ../.env
+    depends_on:
+      - kong
+      - backend
     networks:
       - campus_network
 
@@ -32,6 +104,7 @@ services:
     depends_on:
       - backend
       - frontend
+      - kong
 
 networks:
   campus_network:
@@ -40,3 +113,4 @@ networks:
 volumes:
   caddy_data:
   caddy_config:
+  supabase_db_data:
