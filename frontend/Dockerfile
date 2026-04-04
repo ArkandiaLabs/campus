@@ -13,6 +13,10 @@ WORKDIR /app
 
 RUN corepack enable pnpm
 
+ARG NEXT_PUBLIC_SUPABASE_URL
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+ARG NEXT_PUBLIC_API_URL
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
