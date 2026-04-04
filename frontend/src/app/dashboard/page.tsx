@@ -1,11 +1,11 @@
 import { redirect } from "next/navigation";
-import { createSupabaseServerClient } from "@/lib/supabase";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import Navbar from "@/components/Navbar";
 import OfferingCard from "@/components/OfferingCard";
 import type { UserOffering } from "@/types";
 
 async function getCatalog(token: string): Promise<UserOffering[]> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+  const apiUrl = process.env.API_INTERNAL_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
   const res = await fetch(`${apiUrl}/api/v1/catalog`, {
     headers: { Authorization: `Bearer ${token}` },
     cache: "no-store",

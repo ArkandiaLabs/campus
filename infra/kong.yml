@@ -26,4 +26,6 @@ services:
             - Authorization
             - Content-Type
             - apikey
+            - x-supabase-api-version
+            - x-client-info
           credentials: true

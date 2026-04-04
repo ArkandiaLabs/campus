@@ -7,6 +7,8 @@ RUN pip install uv
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
+ENV PATH="/app/.venv/bin:$PATH"
+
 FROM python:3.12-slim AS runtime
 
 WORKDIR /app

@@ -1,7 +1,7 @@
 .PHONY: lint typecheck test check dev build db-init db-baseline db-migrate db-seed db-psql
 
-# Database URL for host-side psql (uses mapped port on localhost)
-DB_URL ?= postgresql://postgres:$(POSTGRES_PASSWORD)@localhost:5432/postgres
+# Run psql inside the db container (no local psql required)
+DBEXEC = docker compose exec -T db psql -U postgres
 
 lint:
 	cd backend && uv run ruff check app tests
@@ -31,16 +31,16 @@ db-baseline:
 	@until docker compose exec db pg_isready -U postgres > /dev/null 2>&1; do sleep 1; done
 	@echo "Waiting for GoTrue to finish migrations..."
 	@sleep 5
-	psql "$(DB_URL)" -f database/schema/baseline.sql
+	$(DBEXEC) < database/schema/baseline.sql
 
 db-migrate:
-	psql "$(DB_URL)" -f database/migrations/001_add_auth_user_id_to_core_client.sql
-	psql "$(DB_URL)" -f database/migrations/002_create_ed_content.sql
-	psql "$(DB_URL)" -f database/migrations/003_create_ed_content_progress.sql
-	psql "$(DB_URL)" -f database/migrations/004_enable_rls_campus.sql
+	$(DBEXEC) < database/migrations/001_add_auth_user_id_to_core_client.sql
+	$(DBEXEC) < database/migrations/002_create_ed_content.sql
+	$(DBEXEC) < database/migrations/003_create_ed_content_progress.sql
+	$(DBEXEC) < database/migrations/004_enable_rls_campus.sql
 
 db-seed:
-	psql "$(DB_URL)" -f database/seeds/seed.sql
+	$(DBEXEC) < database/seeds/seed.sql
 
 db-psql:
-	psql "$(DB_URL)"
+	docker compose exec db psql -U postgres
