@@ -27,7 +27,7 @@ export default function Navbar({ userName }: NavbarProps) {
             onClick={handleLogout}
             className="text-sm text-blue-600 hover:underline"
           >
-            Cerrar sesion
+            Cerrar sesi&oacute;n
           </button>
         </div>
       </div>

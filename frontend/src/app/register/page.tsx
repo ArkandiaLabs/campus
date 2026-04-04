@@ -43,10 +43,10 @@ export default function RegisterPage() {
           <div className="text-green-600 text-5xl mb-4">✓</div>
           <h1 className="text-xl font-bold text-gray-900 mb-2">Revisa tu email</h1>
           <p className="text-gray-600">
-            Revisa tu email para confirmar tu cuenta antes de iniciar sesion.
+            Revisa tu email para confirmar tu cuenta antes de iniciar sesi&oacute;n.
           </p>
           <Link href="/login" className="mt-6 inline-block text-blue-600 hover:underline text-sm">
-            Volver al inicio de sesion
+            Volver al inicio de sesi&oacute;n
           </Link>
         </div>
       </div>
@@ -77,7 +77,7 @@ export default function RegisterPage() {
 
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-              Correo electronico
+              Correo electr&oacute;nico
             </label>
             <input
               id="email"
@@ -91,7 +91,7 @@ export default function RegisterPage() {
 
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-              Contrasena
+              Contrase&ntilde;a
             </label>
             <input
               id="password"
@@ -118,7 +118,7 @@ export default function RegisterPage() {
         <p className="mt-6 text-center text-sm text-gray-600">
           Ya tienes una cuenta?{" "}
           <Link href="/login" className="text-blue-600 hover:underline">
-            Inicia sesion
+            Inicia sesi&oacute;n
           </Link>
         </p>
       </div>
