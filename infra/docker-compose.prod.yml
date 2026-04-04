@@ -8,6 +8,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - supabase_db_data:/var/lib/postgresql/data
+      - ./init-auth-password.sh:/docker-entrypoint-initdb.d/99-auth-password.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -65,7 +66,8 @@ services:
   # ─── Application ───────────────────────────────────────────────────────────
 
   backend:
-    image: arkandia-campus-backend:latest
+    build:
+      context: ../backend
     restart: unless-stopped
     env_file:
       - ../.env
@@ -79,10 +81,14 @@ services:
       - campus_network
 
   frontend:
-    image: arkandia-campus-frontend:latest
+    build:
+      context: ../frontend
     restart: unless-stopped
     env_file:
       - ../.env
+    environment:
+      SUPABASE_INTERNAL_URL: http://kong:8000
+      API_INTERNAL_URL: http://backend:8000
     depends_on:
       - kong
       - backend
