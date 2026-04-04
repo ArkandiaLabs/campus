@@ -5,6 +5,7 @@ services:
     image: supabase/postgres:15.6.1.145
     restart: unless-stopped
     environment:
+      POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - supabase_db_data:/var/lib/postgresql/data
