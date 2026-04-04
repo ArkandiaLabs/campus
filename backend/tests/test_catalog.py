@@ -40,8 +40,6 @@ SAMPLE_OFFERING = UserOffering(
     start_date=date(2025, 1, 15),
     end_date=date(2025, 1, 19),
     purchased_at=datetime(2025, 1, 1, tzinfo=UTC),
-    total_contents=5,
-    completed_contents=2,
 )
 
 SAMPLE_DETAIL = OfferingDetail(
@@ -60,11 +58,8 @@ SAMPLE_DETAIL = OfferingDetail(
             content_url="https://vimeo.com/123",
             position=1,
             is_preview=True,
-            completed=True,
         )
     ],
-    total_contents=1,
-    completed_contents=1,
 )
 
 

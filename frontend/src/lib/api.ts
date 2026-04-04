@@ -1,5 +1,5 @@
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
-import type { OfferingDetail, ProgressRecord, UserOffering } from "@/types";
+import type { OfferingDetail, UserOffering } from "@/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -47,20 +47,6 @@ class ApiClient {
   async getOffering(id: string): Promise<OfferingDetail> {
     return this.request<OfferingDetail>(`/api/v1/catalog/${id}`);
   }
-
-  async markComplete(contentId: string): Promise<ProgressRecord> {
-    return this.request<ProgressRecord>("/api/v1/progress", {
-      method: "POST",
-      body: JSON.stringify({ content_id: contentId }),
-    });
-  }
-
-  async unmarkComplete(contentId: string): Promise<void> {
-    return this.request<void>(`/api/v1/progress/${contentId}`, {
-      method: "DELETE",
-    });
-  }
-
 }
 
 export const api = new ApiClient();

@@ -15,8 +15,6 @@ class UserOffering(BaseModel):
     start_date: date | None
     end_date: date | None
     purchased_at: datetime
-    total_contents: int
-    completed_contents: int
 
 
 class ContentItem(BaseModel):
@@ -27,7 +25,6 @@ class ContentItem(BaseModel):
     content_url: str
     position: int
     is_preview: bool
-    completed: bool
 
 
 class OfferingDetail(BaseModel):
@@ -38,5 +35,3 @@ class OfferingDetail(BaseModel):
     start_date: date | None
     end_date: date | None
     contents: list[ContentItem]
-    total_contents: int
-    completed_contents: int

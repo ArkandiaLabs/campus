@@ -14,20 +14,13 @@ class PgCatalogRepository:
                 SELECT co.id, co.title, co.description, co.type, co.status,
                        cp.purchased_at,
                        ec.title AS cohort_title,
-                       ec.start_date, ec.end_date,
-                       COUNT(DISTINCT edc.id) AS total_contents,
-                       COUNT(DISTINCT edp.id) AS completed_contents
+                       ec.start_date, ec.end_date
                 FROM core_offering co
                 JOIN core_purchase cp ON cp.offering_id = co.id
                 JOIN core_client cc ON cc.id = cp.client_id
                 LEFT JOIN ed_cohort ec ON ec.id = cp.cohort_id
-                LEFT JOIN ed_content edc ON edc.cohort_id = ec.id
-                LEFT JOIN ed_content_progress edp
-                    ON edp.content_id = edc.id AND edp.user_id = $1
                 WHERE cc.auth_user_id = $1
                   AND cp.status = 'completed'
-                GROUP BY co.id, co.title, co.description, co.type, co.status,
-                         cp.purchased_at, ec.title, ec.start_date, ec.end_date
                 ORDER BY cp.purchased_at DESC
                 """,
                 user_id,
@@ -69,29 +62,21 @@ class PgCatalogRepository:
                     start_date=offering_row["start_date"],
                     end_date=offering_row["end_date"],
                     contents=[],
-                    total_contents=0,
-                    completed_contents=0,
                 )
 
             content_rows = await conn.fetch(
                 """
                 SELECT edc.id, edc.title, edc.description,
                        edc.content_type, edc.content_url,
-                       edc.position, edc.is_preview,
-                       (edp.id IS NOT NULL) AS completed
+                       edc.position, edc.is_preview
                 FROM ed_content edc
-                LEFT JOIN ed_content_progress edp
-                    ON edp.content_id = edc.id AND edp.user_id = $1
-                WHERE edc.cohort_id = $2
+                WHERE edc.cohort_id = $1
                 ORDER BY edc.position ASC
                 """,
-                user_id,
                 cohort_id,
             )
 
             contents = [ContentItem(**dict(row)) for row in content_rows]
-            total = len(contents)
-            completed = sum(1 for c in contents if c.completed)
 
             return OfferingDetail(
                 id=offering_row["id"],
@@ -101,6 +86,4 @@ class PgCatalogRepository:
                 start_date=offering_row["start_date"],
                 end_date=offering_row["end_date"],
                 contents=contents,
-                total_contents=total,
-                completed_contents=completed,
             )

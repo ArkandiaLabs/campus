@@ -8,8 +8,6 @@ export interface UserOffering {
   start_date: string | null;
   end_date: string | null;
   purchased_at: string;
-  total_contents: number;
-  completed_contents: number;
 }
 
 export interface ContentItem {
@@ -20,7 +18,6 @@ export interface ContentItem {
   content_url: string;
   position: number;
   is_preview: boolean;
-  completed: boolean;
 }
 
 export interface OfferingDetail {
@@ -31,13 +28,4 @@ export interface OfferingDetail {
   start_date: string | null;
   end_date: string | null;
   contents: ContentItem[];
-  total_contents: number;
-  completed_contents: number;
-}
-
-export interface ProgressRecord {
-  id: string;
-  user_id: string;
-  content_id: string;
-  completed_at: string;
 }

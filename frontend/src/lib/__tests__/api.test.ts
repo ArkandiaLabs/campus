@@ -49,43 +49,6 @@ describe("ApiClient", () => {
     expect(result).toEqual(mockOfferings);
   });
 
-  it("markComplete sends POST with content_id", async () => {
-    const mockRecord = { id: "rec-1", content_id: "content-1" };
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      status: 201,
-      json: () => Promise.resolve(mockRecord),
-    });
-
-    const { api } = await import("@/lib/api");
-    const result = await api.markComplete("content-1");
-
-    expect(mockFetch).toHaveBeenCalledWith(
-      expect.stringContaining("/api/v1/progress"),
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({ content_id: "content-1" }),
-      })
-    );
-    expect(result).toEqual(mockRecord);
-  });
-
-  it("unmarkComplete sends DELETE", async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      status: 204,
-      json: () => Promise.resolve(undefined),
-    });
-
-    const { api } = await import("@/lib/api");
-    await api.unmarkComplete("content-1");
-
-    expect(mockFetch).toHaveBeenCalledWith(
-      expect.stringContaining("/api/v1/progress/content-1"),
-      expect.objectContaining({ method: "DELETE" })
-    );
-  });
-
   it("redirects to /login on 401", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: false,

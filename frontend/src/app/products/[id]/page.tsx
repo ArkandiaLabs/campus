@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import Navbar from "@/components/Navbar";
@@ -64,6 +65,13 @@ export default async function ProductPage({ params }: ProductPageProps) {
       <Navbar userName={userName} />
 
       <main className="max-w-3xl mx-auto w-full px-4 py-8">
+        <Link
+          href="/dashboard"
+          className="text-sm text-blue-600 hover:underline mb-4 inline-block"
+        >
+          ← Mis workshops
+        </Link>
+
         {/* Offering header */}
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-900 mb-1">{offering.title}</h1>
@@ -73,14 +81,9 @@ export default async function ProductPage({ params }: ProductPageProps) {
           )}
         </div>
 
-        {/* Content list with progress */}
+        {/* Content list */}
         {offering.contents.length > 0 ? (
-          <ContentList
-            offeringId={offering.id}
-            initialContents={offering.contents}
-            totalContents={offering.total_contents}
-            completedContents={offering.completed_contents}
-          />
+          <ContentList contents={offering.contents} />
         ) : (
           <p className="text-gray-500 text-sm">
             Aun no hay contenido disponible para este workshop.
