@@ -6,6 +6,7 @@ from httpx import AsyncClient
 
 from app.domain.models.offering import ContentItem, OfferingDetail, UserOffering
 from app.domain.services.catalog_service import CatalogService
+from tests.conftest import make_token
 
 # ─── Fake repository ──────────────────────────────────────────────────────────
 
@@ -128,3 +129,38 @@ async def test_catalog_detail_requires_auth(client: AsyncClient) -> None:
     offering_id = str(uuid4())
     response = await client.get(f"/api/v1/catalog/{offering_id}")
     assert response.status_code in (401, 403)
+
+
+@pytest.mark.asyncio
+async def test_health_check_no_auth_required(client: AsyncClient) -> None:
+    response = await client.get("/api/v1/health")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+
+@pytest.mark.asyncio
+async def test_health_check_rejects_post(client: AsyncClient) -> None:
+    response = await client.post("/api/v1/health")
+    assert response.status_code == 405
+
+
+@pytest.mark.asyncio
+async def test_catalog_rejects_expired_token(client: AsyncClient) -> None:
+    token = make_token(expired=True)
+    response = await client.get(
+        "/api/v1/catalog",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Token has expired."
+
+
+@pytest.mark.asyncio
+async def test_catalog_detail_rejects_expired_token(client: AsyncClient) -> None:
+    token = make_token(expired=True)
+    response = await client.get(
+        f"/api/v1/catalog/{uuid4()}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Token has expired."
