@@ -1,0 +1,27 @@
+pre-commit:
+  parallel: true
+  commands:
+    ruff-check:
+      root: backend/
+      glob: "*.py"
+      run: uv run ruff check {staged_files} --no-fix
+    ruff-format:
+      root: backend/
+      glob: "*.py"
+      run: uv run ruff format --check {staged_files}
+    eslint:
+      root: frontend/
+      glob: "*.{ts,tsx}"
+      run: pnpm eslint {staged_files} --no-warn-ignored
+
+pre-push:
+  parallel: true
+  commands:
+    pyright:
+      run: cd backend && uv run pyright
+    tsc:
+      run: cd frontend && pnpm run typecheck
+    pytest:
+      run: cd backend && uv run pytest -v
+    vitest:
+      run: cd frontend && pnpm run test
