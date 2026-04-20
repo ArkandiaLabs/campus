@@ -1,7 +1,15 @@
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import type { OfferingDetail, UserOffering } from "@/types";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+export function getApiUrl(): string {
+  return (
+    process.env.API_INTERNAL_URL ??
+    process.env.NEXT_PUBLIC_API_URL ??
+    "http://localhost:8000"
+  );
+}
+
+const API_URL = getApiUrl();
 
 class ApiClient {
   private async getToken(): Promise<string | null> {

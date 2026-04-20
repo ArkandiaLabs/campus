@@ -1,4 +1,9 @@
-.PHONY: dev build db-init db-baseline db-migrate db-seed db-psql
+.PHONY: dev build db-init db-baseline db-migrate db-seed db-psql \
+       lint lint-backend lint-frontend \
+       typecheck typecheck-backend typecheck-frontend \
+       test test-backend test-frontend \
+       check fmt audit audit-backend audit-frontend \
+       arch arch-backend hooks
 
 # Run psql inside the db container (no local psql required)
 DBEXEC = docker compose exec -T db psql -U postgres
@@ -30,3 +35,65 @@ db-seed:
 
 db-psql:
 	docker compose exec db psql -U postgres
+
+# ─── Lint ────────────────────────────────────────────────────────────────────
+
+lint: lint-backend lint-frontend
+
+lint-backend:
+	cd backend && uv run ruff check app tests
+
+lint-frontend:
+	cd frontend && pnpm run lint
+
+# ─── Type check ──────────────────────────────────────────────────────────────
+
+typecheck: typecheck-backend typecheck-frontend
+
+typecheck-backend:
+	cd backend && uv run pyright
+
+typecheck-frontend:
+	cd frontend && pnpm run typecheck
+
+# ─── Test ────────────────────────────────────────────────────────────────────
+
+test: test-backend test-frontend
+
+test-backend:
+	cd backend && uv run pytest -v
+
+test-frontend:
+	cd frontend && pnpm run test
+
+# ─── All checks ──────────────────────────────────────────────────────────────
+
+check: lint typecheck test
+
+# ─── Format (auto-fix) ──────────────────────────────────────────────────────
+
+fmt:
+	cd backend && uv run ruff check --fix app tests && uv run ruff format app tests
+	cd frontend && pnpm eslint --fix src
+
+# ─── Dependency audit ────────────────────────────────────────────────────────
+
+audit: audit-backend audit-frontend
+
+audit-backend:
+	cd backend && uv audit
+
+audit-frontend:
+	cd frontend && pnpm audit
+
+# ─── Architecture ────────────────────────────────────────────────────────────
+
+arch: arch-backend
+
+arch-backend:
+	cd backend && uv run lint-imports
+
+# ─── Git hooks ───────────────────────────────────────────────────────────────
+
+hooks:
+	lefthook install
