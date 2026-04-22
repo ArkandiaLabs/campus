@@ -49,8 +49,9 @@ jobs:
 
   deploy:
     name: Deploy to Hetzner
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [ check-backend, check-frontend ]
     runs-on: ubuntu-latest
-
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
@@ -59,7 +60,7 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
-            cd ~/campus
+            cd ~/campus-prep
             git pull origin main
             docker compose --env-file .env -f infra/docker-compose.prod.yml build
             docker compose --env-file .env -f infra/docker-compose.prod.yml up -d
