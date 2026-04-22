@@ -1,9 +1,7 @@
 ---
 name: linear-plan
-description: Create a detailed implementation plan from a Linear issue. Fetches issue context, explores codebase, asks clarifying questions, and produces a phased plan with testing strategy.
-argument-hint: '[ISSUE-ID]'
-disable-model-invocation: true
-model: claude-opus-4-6
+description: Create a detailed phased implementation plan from a Linear issue. Use when the user asks for planning from a specific issue ID.
+compatibility: Requires Linear MCP access and repository read access.
 ---
 
 # Implementation Plan from Linear Issue
@@ -12,7 +10,11 @@ You are entering **planning mode**. You MUST NOT make any code changes, create f
 
 ## Step 1: Fetch the Linear issue
 
-Use the `mcp__linear-server__get_issue` tool to fetch issue **$ARGUMENTS**. Extract:
+Extract the issue ID from the user's prompt (for example `LIN-123`).
+
+If the user did not provide an issue ID, ask for it and stop until they answer.
+
+Use the `mcp__linear-server__get_issue` tool to fetch that issue. Extract:
 - Title
 - Description (user story, acceptance criteria, out of scope)
 - Priority, labels, project, milestone
