@@ -1,50 +1,84 @@
 # AGENTS.md
 
-Guidance for AI coding agents working in this repo. Follows the [agents.md](https://agents.md) convention.
+## Project overview
 
-This file only captures what isn't obvious from the code or existing docs. For architecture, data model, ADRs, and broader context, follow the pointers below and read the source.
+Campus is a workshop preparation environment for `campus.arkandia.co`, with:
+- backend: FastAPI + asyncpg (hexagonal architecture)
+- frontend: Next.js 16 + TypeScript strict
+- auth: self-hosted Supabase Auth (GoTrue + Kong)
+- infra: Docker Compose (dev + production variants)
+
+This file is the operational playbook for agents. Use linked docs for deeper context.
 
 ## Where to find things
 
 - **Architecture overview:** `docs/architecture.md`
 - **Business / product context:** `docs/business.md`, `docs/target-user.md`
-- **Dev environment setup:** `docs/development.md`, root `README.md`
-- **Architecture decisions (why, not what):** `docs/adrs/`
-- **Database schema + relationships:** `database/docs/data-model.md`, `database/README.md`
+- **Dev setup and workflow:** `docs/development.md`, root `README.md`
+- **Architecture decisions (why):** `docs/adrs/`
+- **Database model:** `database/docs/data-model.md`, `database/README.md`
 - **Infrastructure:** `infra/docs/infrastructure.md`
 
-Read these before making structural changes.
+Read these before structural changes.
 
-## Commands
+## Setup commands
 
 ```bash
-make dev          # start all services (Postgres, GoTrue, Kong, backend, frontend)
-make check        # lint + typecheck + test (all) — run before declaring work done
-make db-init      # baseline schema + migrations; requires `make dev` running first
-make db-seed      # sample data
-make db-psql      # psql inside the db container
+cp .env.example .env
+make hooks
+make dev
+make db-init
+make db-seed
 ```
 
-Scoped runs: `cd backend && uv run pytest -v` / `uv run ruff check app tests` / `uv run pyright`.
-Frontend: `cd frontend && pnpm vitest run` / `pnpm eslint src` / `pnpm tsc --noEmit`.
+Reproducible dependency installs:
+
+```bash
+cd backend && uv sync --frozen
+cd frontend && pnpm install --frozen-lockfile
+```
+
+## Checks to run
+
+Fast local checks:
+
+```bash
+make check
+```
+
+CI-parity checks (recommended before merge):
+
+```bash
+make check
+cd backend && uv run ruff format --check app tests && uv run lint-imports && uv audit
+cd frontend && pnpm audit
+```
+
+## Change-based check matrix
+
+- **Backend domain/service/repo/router:** `make check` + `cd backend && uv run lint-imports`
+- **Frontend UI/app routes/data fetch:** `make check`
+- **Dependency updates:** CI-parity checks including both `audit` commands
+- **Database schema/migrations:** run `make db-init` in a fresh running stack and smoke test affected flows
+- **Infra/deploy changes:** run `make check` and validate relevant compose/deploy commands
 
 ## Non-obvious rules
 
 - **Hexagonal boundary:** `backend/app/domain` must never import from `backend/app/infrastructure`. Infrastructure implements domain `Protocol`s. Rationale: ADR-002.
-- **Access-control invariant:** every query that exposes offerings/content must filter by `core_purchase.status = 'completed'` AND `core_client.auth_user_id = <JWT sub>`. Do not add endpoints that bypass this.
-- **Manual user linking:** GoTrue creates `auth.users` rows, but `core_client.auth_user_id` is not auto-populated. After registering a new user: `UPDATE core_client SET auth_user_id = '<uuid>' WHERE email = '<email>';`
-- **Next.js 16:** this project uses Next.js 16, which has breaking changes vs. earlier versions. Your training data is likely wrong. Read `frontend/node_modules/next/dist/docs/` before writing Next.js-specific code. Heed deprecation notices.
-- **`db-init` ordering:** GoTrue must have run its own migrations before `baseline.sql` executes, so `make dev` must be up first.
+- **Access-control invariant:** every query exposing offerings/content must filter by `core_purchase.status = 'completed'` AND `core_client.auth_user_id = <JWT sub>`.
+- **Manual user linking:** GoTrue creates `auth.users` rows, but `core_client.auth_user_id` is not auto-populated. After signup: `UPDATE core_client SET auth_user_id = '<uuid>' WHERE email = '<email>';`
+- **Migration workflow:** add SQL file to `database/migrations/` with next sequence number, then register it in `Makefile` under `db-migrate`.
+- **Next.js 16:** check `frontend/node_modules/next/dist/docs/` when touching framework behavior.
+- **Frontend conventions:** server components by default; user-facing text in Spanish (tuteo); server-side calls use internal URLs and browser calls use `NEXT_PUBLIC_*`.
+- **`db-init` ordering:** GoTrue migrations must run before `baseline.sql`; `make dev` must be up first.
 
-## Testing
+## Testing conventions
 
-Backend tests use **fake in-memory repositories implementing the domain `Protocol`** — not mocks, not a live DB. Pattern: see `backend/tests/test_catalog.py` (`FakeCatalogRepo`). HTTP endpoint tests use `httpx.AsyncClient` + `ASGITransport`. `asyncio_mode = "auto"` is set, so new tests don't need `@pytest.mark.asyncio`.
+Backend tests use fake in-memory repositories implementing domain `Protocol`s (not mocks, not live DB). Pattern: `backend/tests/test_catalog.py` (`FakeCatalogRepo`).
 
-## Code style
-
-Enforced by tooling — run `make lint` and `make typecheck`. Don't add docstrings, comments, or type annotations to code you didn't change.
+HTTP endpoint tests use `httpx.AsyncClient` + `ASGITransport`. `asyncio_mode = "auto"` is already set.
 
 ## Security
 
-- Don't log JWTs, `SUPABASE_JWT_SECRET`, or `auth.users` rows.
-- Don't commit `.env`; add new variables to `.env.example`.
+- Do not log JWTs, `SUPABASE_JWT_SECRET`, or `auth.users` rows.
+- Do not commit `.env`; add new variables to `.env.example`.
