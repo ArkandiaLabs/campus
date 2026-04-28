@@ -1,14 +1,57 @@
-name: Deploy
+name: Campus CI/CD
 
 on:
   push:
-    branches: [main]
+  pull_request:
+    branches: [ main ]
 
 jobs:
+  check-backend:
+    name: Backend checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - run: uv run ruff check app tests
+      - run: uv run ruff format --check app tests
+      - run: uv run pyright
+      - run: uv run pytest -v
+      - run: uv run lint-imports
+      - run: uv audit
+
+  check-frontend:
+    name: Frontend checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run lint
+      - run: pnpm run typecheck
+      - run: pnpm run test
+      - run: pnpm audit
+
   deploy:
     name: Deploy to Hetzner
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [ check-backend, check-frontend ]
     runs-on: ubuntu-latest
-
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
@@ -17,7 +60,7 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
-            cd ~/campus
+            cd ~/campus-prep
             git pull origin main
             docker compose --env-file .env -f infra/docker-compose.prod.yml build
             docker compose --env-file .env -f infra/docker-compose.prod.yml up -d
