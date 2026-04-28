@@ -4,129 +4,161 @@
 
 Estudiantes que compraron un workshop necesitan una página por sesión con video (Vimeo), descripción y recursos. En la página del workshop, las sesiones deben agruparse y los recursos sin sesión deben quedar al final como "recursos generales".
 
-Hoy `ed_content` solo se asocia a `ed_cohort` y el detalle del workshop renderiza una lista plana. `ed_session` existe en esquema pero no se expone en la API.
+Hoy `ed_content` solo se asocia a `ed_cohort` y el detalle del workshop renderiza una lista plana. `ed_session` existe en esquema pero no se expone en la API y no tiene seed data.
+
+## Flujo de tablas
+
+### Workshop page `GET /catalog/{offering_id}`
+```
+core_offering (id = $1)
+  → ed_cohort (offering_id = core_offering.id)  [ya existe en get_offering_detail]
+       ├─ ed_session (cohort_id = ed_cohort.id)
+       │    ORDER BY scheduled_at ASC NULLS LAST
+       │    → SessionSummary[]  (id, title, scheduled_at, duration_minutes)
+       │
+       └─ ed_content (cohort_id = ed_cohort.id, session_id IS NULL)
+            ORDER BY position
+            → general_resources[]  (ContentItem)
+```
+Access control: ya resuelto en query 1 via `core_purchase.status='completed' AND core_client.auth_user_id=$1`.
+
+### Session detail `GET /catalog/sessions/{session_id}`
+```
+ed_session (id = $1)
+  JOIN ed_cohort ON ed_cohort.id = ed_session.cohort_id
+  JOIN core_purchase ON core_purchase.cohort_id = ed_cohort.id
+                    AND core_purchase.status = 'completed'
+  JOIN core_client ON core_client.id = core_purchase.client_id
+                  AND core_client.auth_user_id = $2
+  → 404 si no retorna fila
+
+ed_content (session_id = $1)
+  ORDER BY position
+  → SessionDetail.contents[]
+```
 
 ## Estado actual
 
-- **DB**: `ed_session(id, cohort_id, title, scheduled_at, duration_minutes, zoom_*)` — sin `description`. `ed_content(id, cohort_id, title, description, content_type, content_url, position, is_preview)` — sin `session_id`.
-- **Backend**: `app/domain/models/offering.py` (ContentItem, OfferingDetail), `app/domain/repositories/catalog_repo.py` (Protocol), `app/infrastructure/persistence/pg_catalog_repo.py`, `app/infrastructure/routers/catalog.py` (GET `/catalog`, GET `/catalog/{id}`).
-- **Frontend**: `src/app/products/[id]/page.tsx` renderiza `OfferingDetail` con `ContentList` plano. `src/lib/api.ts` (`ApiClient.getOffering`). Sin ruta de sesión ni utilidad Vimeo.
-- **Auth invariant**: todo query debe filtrar `core_purchase.status='completed' AND core_client.auth_user_id=<JWT sub>`.
-- **Tests**: `tests/test_catalog.py` usa `FakeCatalogRepo`; frontend usa vitest + jsdom.
+- **DB**: `ed_session(id, cohort_id, title, scheduled_at, duration_minutes, zoom_*)` — sin `description`. `ed_content(id, cohort_id, title, description, content_type, content_url, position, is_preview)` — sin `session_id`. `content_type` CHECK: `('video', 'download', 'link')`.
+- **Seeds**: 5 videos + 2 downloads en `ed_content`; cero filas en `ed_session`. URLs Vimeo no tienen ID numérico (`/placeholder/sesion-N`) — inválidas para regex.
+- **Backend**: `get_offering_detail` hace 2 queries; la primera ya trae `cohort_id`. `OfferingDetail.contents: list[ContentItem]` (lista plana).
+- **Frontend**: `products/[id]/page.tsx` renderiza `<ContentList>` plano. Sin ruta de sesión ni componente Vimeo.
+- **Auth invariant**: todo query que expone contenido filtra `core_purchase.status='completed' AND core_client.auth_user_id=<JWT sub>`.
 
-## Decisiones (respuestas del usuario)
+## Decisiones
 
-1. `ed_content.session_id` nullable → sesión; null → recurso general.
-2. Video Vimeo = `ed_content` tipo `video` ligado a sesión (no columna dedicada).
-3. API: extender `/catalog/{id}` con `sessions[]` + `general_resources[]`; agregar `/catalog/sessions/{session_id}` para detalle.
-4. Agregar `ed_session.description`.
+1. `ed_content.session_id` nullable FK a `ed_session(id)` → recurso de sesión; NULL → recurso general del workshop.
+2. Los 2 downloads del seed son general resources (`session_id IS NULL`).
+3. Video de sesión = `ed_content(content_type='video', session_id=<session>)`. Un video por sesión en seed.
+4. `ed_session.title` toma los títulos actuales de `ed_content` (ej. "Sesión 1: Instrumentando el repositorio"). `ed_content.title` del video pasa a "Grabación de la Sesión".
+5. Vimeo embed: regex `/vimeo\.com\/(\d+)/` — cubre `vimeo.com/{id}` y `player.vimeo.com/video/{id}`. Seeds actualizados con IDs numéricos fake (ej. `https://vimeo.com/100000001`).
+6. Filtrado de video principal: en `page.tsx` de sesión — `session.contents.find(c => c.content_type === 'video')` = embed; resto → `<ContentList>`.
+7. RLS: `ed_session` no tiene RLS (migration 004 solo cubre `ed_content`). Access control se hace a nivel de app en el query de detalle de sesión — suficiente mientras el backend corre con permisos de servicio.
+8. API: extender `/catalog/{id}` con `sessions[]` + `general_resources[]`; agregar `GET /catalog/sessions/{session_id}`.
+9. `ed_session.description` se agrega via migración.
 
 ## Fases de implementación
 
 ### Fase 1: Migración BD
 
-**Objetivo**: agregar `session_id` a `ed_content` y `description` a `ed_session`.
-
-**Cambios**:
+**Cambios:**
 - `database/migrations/006_sessions_content_link.sql` (nuevo):
-  - `ALTER TABLE ed_session ADD COLUMN description text;`
-  - `ALTER TABLE ed_content ADD COLUMN session_id uuid REFERENCES ed_session(id) ON DELETE SET NULL;`
-  - `CREATE INDEX idx_ed_content_session_id ON ed_content(session_id);`
-- `database/seeds/seed.sql` — agregar sesiones de ejemplo + asignar `session_id` a parte del contenido existente; dejar algún contenido con `session_id=NULL` (recurso general). Incluir al menos un `content_type='video'` con URL de Vimeo por sesión.
-- `database/docs/data-model.md` — actualizar diagrama/relaciones.
+  ```sql
+  ALTER TABLE ed_session ADD COLUMN description text;
+  ALTER TABLE ed_content ADD COLUMN session_id uuid REFERENCES ed_session(id) ON DELETE SET NULL;
+  CREATE INDEX idx_ed_content_session_id ON ed_content(session_id);
+  ```
+- `database/seeds/seed.sql` — reescribir bloque de contenido:
+  - Insertar 5 filas en `ed_session` (títulos actuales de los videos, `scheduled_at` con fechas reales, `duration_minutes=120`).
+  - Insertar 5 `ed_content(content_type='video', title='Grabación de la Sesión', session_id=<session>, content_url='https://vimeo.com/10000000N')`.
+  - Mantener 2 downloads con `session_id IS NULL` (general resources del workshop).
+- `database/docs/data-model.md` — agregar `ed_session.description` y `ed_content.session_id` al diagrama.
 
-**Verificación**:
-- [ ] `make db-init && make db-seed` corre sin error.
-- [ ] `make db-psql` → `SELECT * FROM ed_session WHERE description IS NOT NULL;` devuelve filas.
-- [ ] `SELECT session_id, count(*) FROM ed_content GROUP BY session_id;` muestra mezcla de NULL y no-NULL.
+**Verificación:**
+- [ ] `make db-init && make db-seed` sin error.
+- [ ] `SELECT session_id, count(*) FROM ed_content GROUP BY session_id;` — 5 filas con session_id, 2 con NULL.
+- [ ] `SELECT * FROM ed_session WHERE description IS NOT NULL;` — no retorna nada (description se agrega vacía en seed, se puede actualizar manualmente).
 
-### Fase 2: Backend — modelo de sesiones en detalle del workshop
+### Fase 2: Backend — modelo y `OfferingDetail`
 
-**Objetivo**: `/catalog/{id}` devuelve `sessions[]` (cada una con sus recursos) + `general_resources[]`.
+**Objetivo:** `/catalog/{id}` retorna `sessions[]` + `general_resources[]` en vez de `contents[]`.
 
-**Cambios**:
+**Cambios:**
 - `backend/app/domain/models/offering.py`:
-  - Nuevo `SessionSummary(id, title, scheduled_at, duration_minutes)`.
-  - `OfferingDetail`: reemplazar `contents` por `sessions: list[SessionSummary]` y `general_resources: list[ContentItem]`.
-- `backend/app/domain/repositories/catalog_repo.py`: actualizar signature de `get_offering_detail` (retorna nueva forma).
+  - Nuevo `SessionSummary(id: UUID, title: str, scheduled_at: datetime | None, duration_minutes: int | None)`.
+  - `OfferingDetail`: reemplazar `contents` por `sessions: list[SessionSummary]` + `general_resources: list[ContentItem]`.
+- `backend/app/domain/repositories/catalog_repo.py`: actualizar signature de `get_offering_detail`.
 - `backend/app/infrastructure/persistence/pg_catalog_repo.py`:
-  - Query sesiones de la cohorte ordenadas por `scheduled_at` asc nulls last, luego `created_at`.
-  - Query `ed_content` con `session_id IS NULL` para `general_resources`, ordenado por `position`.
-- `backend/app/infrastructure/routers/catalog.py`: sin cambios estructurales (mismo endpoint, nuevo payload).
-- `backend/tests/test_catalog.py`: actualizar `FakeCatalogRepo` y fixtures; agregar tests de nueva forma.
+  - Query 2: `SELECT id, title, scheduled_at, duration_minutes FROM ed_session WHERE cohort_id=$1 ORDER BY scheduled_at ASC NULLS LAST`.
+  - Query 3: `SELECT ... FROM ed_content WHERE cohort_id=$1 AND session_id IS NULL ORDER BY position ASC`.
+- `backend/tests/test_catalog.py`: actualizar `FakeCatalogRepo` + `SAMPLE_DETAIL`; agregar test con mezcla de sessions y general_resources.
 
-**Verificación**:
-- [ ] `cd backend && uv run pytest -v` pasa.
-- [ ] Llamada manual: `curl -H "Authorization: Bearer <jwt>" /api/v1/catalog/<id>` devuelve `sessions` + `general_resources`.
+**Verificación:**
+- [ ] `uv run pytest tests/test_catalog.py` pasa.
+- [ ] `GET /api/v1/catalog/<id>` retorna `{ sessions: [...], general_resources: [...] }` sin `contents`.
 
 ### Fase 3: Backend — endpoint de detalle de sesión
 
-**Objetivo**: `GET /api/v1/catalog/sessions/{session_id}` devuelve sesión + recursos asociados, con chequeo de acceso.
+**Objetivo:** `GET /api/v1/catalog/sessions/{session_id}` con access control.
 
-**Cambios**:
+**Cambios:**
 - `backend/app/domain/models/offering.py`: `SessionDetail(id, title, description, scheduled_at, duration_minutes, contents: list[ContentItem])`.
 - `backend/app/domain/repositories/catalog_repo.py`: `async def get_session_detail(session_id: UUID, auth_user_id: UUID) -> SessionDetail | None`.
-- `backend/app/domain/services/catalog_service.py`: método `get_session_detail` delegando al repo; 404 si None.
-- `backend/app/infrastructure/persistence/pg_catalog_repo.py`:
-  - Query: join `ed_session → ed_cohort → core_purchase → core_client` con invariante de acceso (`purchase.status='completed' AND client.auth_user_id=$2`). Luego `ed_content WHERE session_id=$1 ORDER BY position`.
-- `backend/app/infrastructure/routers/catalog.py`: `GET /catalog/sessions/{session_id}` → 200/404. **Importante**: agregar ruta ANTES de `/catalog/{offering_id}` si hubiera conflicto, o usar `/sessions/{id}` anidado distinto. Revisar orden de declaración.
-- `backend/tests/test_catalog.py`: tests de servicio (fake repo) + HTTP (200, 404 para sesión ajena, 401 sin token).
+- `backend/app/domain/services/catalog_service.py`: `get_session_detail` delegando al repo; 404 si None.
+- `backend/app/infrastructure/persistence/pg_catalog_repo.py`: query con join de access control (ver flujo arriba) + `ed_content WHERE session_id=$1 ORDER BY position`.
+- `backend/app/infrastructure/routers/catalog.py`: `GET /catalog/sessions/{session_id}` — declarar ANTES de `/catalog/{offering_id}` para evitar conflicto de rutas.
+- `backend/tests/test_catalog.py`: tests 200 (con contenido), 404 (sesión ajena o inexistente), 401 (sin token).
 
-**Verificación**:
-- [ ] `uv run pytest -v` pasa, cobertura de 404 para sesión de workshop no comprado.
+**Verificación:**
+- [ ] `uv run pytest -v` pasa; cobertura de 404 para sesión de workshop no comprado.
 - [ ] `uv run ruff check app tests && uv run pyright` limpio.
 
 ### Fase 4: Frontend — tipos y API client
 
-**Objetivo**: tipos compartidos + métodos `getOffering` (payload nuevo) y `getSession(sessionId)`.
+**Cambios:**
+- `frontend/src/types/index.ts`: agregar `SessionSummary`, `SessionDetail`; actualizar `OfferingDetail` (reemplazar `contents` por `sessions` + `generalResources`).
+- `frontend/src/lib/api.ts`: actualizar `getOffering`; agregar `getSession(sessionId: string): Promise<SessionDetail>`.
+- `frontend/src/lib/__tests__/api.test.ts`: tests de `getSession` (token correcto, 401, 404).
 
-**Cambios**:
-- `frontend/src/types/index.ts`: `SessionSummary`, `SessionDetail`; actualizar `OfferingDetail`.
-- `frontend/src/lib/api.ts`: actualizar `getOffering`; agregar `getSession(sessionId)`.
-- `frontend/src/lib/__tests__/api.test.ts`: tests de `getSession` (token, 401, 404).
-
-**Verificación**:
+**Verificación:**
 - [ ] `pnpm vitest run` pasa.
 - [ ] `pnpm tsc --noEmit` limpio.
 
-### Fase 5: Frontend — página del workshop agrupada por sesiones
+### Fase 5: Frontend — página del workshop agrupada
 
-**Objetivo**: `/products/[id]` muestra bloque por sesión (link al detalle) + sección "Recursos generales".
+**Cambios:**
+- `frontend/src/app/products/[id]/page.tsx`: render `sessions[]` como lista de `<SessionCard>` + sección "Recursos generales" con `<ContentList generalResources={…} />`.
+- `frontend/src/components/SessionCard.tsx` (nuevo): título, fecha, duración. `<Link href="/products/{offeringId}/sessions/{session.id}">`.
 
-**Cambios**:
-- `frontend/src/app/products/[id]/page.tsx`: render `sessions[]` como cards/links a `/products/[id]/sessions/[sessionId]`; al final renderizar `general_resources` usando `ContentList` existente.
-- `frontend/src/components/SessionCard.tsx` (nuevo): card con título, `scheduled_at`, duración. Link `<Link href="/products/{offeringId}/sessions/{id}">`.
-
-**Verificación**:
+**Verificación:**
 - [ ] `pnpm eslint src && pnpm tsc --noEmit` limpio.
-- [ ] Navegación manual: dashboard → workshop muestra sesiones + recursos generales separados.
+- [ ] Manual: dashboard → workshop muestra sesiones clicables + recursos generales separados.
 
 ### Fase 6: Frontend — página de detalle de sesión
 
-**Objetivo**: `/products/[id]/sessions/[sessionId]` con video Vimeo embebido, descripción y lista de recursos.
+**Cambios:**
+- `frontend/src/app/products/[id]/sessions/[sessionId]/page.tsx` (nuevo): SSR con `createSupabaseServerClient`, fetch `getSession(sessionId)`. Render:
+  1. Link de regreso a `/products/{id}`.
+  2. Título + descripción (si existe).
+  3. `<VimeoPlayer url={videoContent.content_url} />` donde `videoContent = session.contents.find(c => c.content_type === 'video')`.
+  4. `<ContentList>` con `session.contents.filter(c => c.content_type !== 'video')`.
+  5. 404 si `session.contents` no tiene ningún video — mostrar mensaje "Grabación no disponible aún".
+- `frontend/src/components/VimeoPlayer.tsx` (nuevo): extrae ID con `/vimeo\.com\/(\d+)/`; embed `https://player.vimeo.com/video/{id}` en `<iframe className="w-full aspect-video" allow="autoplay; fullscreen">`. Fallback si no hay match: `<p>Video no disponible</p>`.
+- Tests vitest: `VimeoPlayer` (parseo URL con `vimeo.com/{id}` y `player.vimeo.com/video/{id}`, fallback sin ID numérico).
 
-**Cambios**:
-- `frontend/src/app/products/[id]/sessions/[sessionId]/page.tsx` (nuevo): SSR con `createSupabaseServerClient`, fetch `getSession`. Render: título, descripción (si existe), video Vimeo (primer `content_type='video'`), resto de contenidos con `ContentList`.
-- `frontend/src/components/VimeoPlayer.tsx` (nuevo): iframe responsive (16:9). Extrae ID de Vimeo de URL (regex `vimeo.com/(\d+)`); embed `https://player.vimeo.com/video/{id}`. Fallback: link directo.
-- `frontend/src/components/ContentList.tsx`: sin cambios (ya maneja download/link/video); filtrar el video principal antes de pasar al listado para no duplicar.
-- Tests vitest para `VimeoPlayer` (parseo de URL) y SSR de la página.
-
-**Verificación**:
+**Verificación:**
 - [ ] `make check` en raíz pasa.
-- [ ] Manual: entrar a sesión → se ve video embebido + descripción + recursos. Recurso link abre en nueva pestaña.
-- [ ] Acceso denegado: intentar sesión de workshop no comprado → 404.
+- [ ] Manual: sesión con video → embed + descripción + recursos. Sesión sin video → mensaje fallback.
+- [ ] Acceso denegado: URL de sesión de workshop no comprado → 404.
 
 ## Estrategia de testing
 
-- **Backend unit** (fake repo): formato nuevo de `OfferingDetail`, `get_session_detail` incluyendo caso de acceso no autorizado (retorna None).
+- **Backend unit** (fake repo): forma nueva de `OfferingDetail`; `get_session_detail` con caso sin acceso.
 - **Backend HTTP**: `/catalog/{id}` payload; `/catalog/sessions/{id}` 200/404/401.
 - **Frontend vitest**: `api.ts` (`getSession`), `VimeoPlayer` (parseo/fallback).
-- **E2E manual**: login → dashboard → workshop → sesión; verificar recursos generales separados; verificar recursos sin sesión al final.
-- **Performance**: `/catalog/{id}` ahora hace 3 queries (offering, sessions, general_resources). Aceptable; todas indexadas. No paginar aún.
+- **E2E manual**: login → dashboard → workshop → sesión → embed + recursos generales al final.
+- **Performance**: `get_offering_detail` ahora hace 3 queries (offering+cohort, sessions, general_resources). Todas indexadas. Sin paginar aún.
 
 ## Preguntas abiertas
 
-- Orden sesiones: `scheduled_at` asc, ¿NULLS primero o último? (asumido: last)
-- ¿Mostrar sesiones futuras sin grabación? (asumido: sí; sin video, mostrar descripción + Zoom si aplica — fuera de alcance ARK-24)
-- ¿Qué hacer si hay >1 video en una sesión? (asumido: primero = principal, resto en lista)
-- Formato Vimeo URL en seeds: ¿`vimeo.com/{id}` o `player.vimeo.com/video/{id}`? Regex debe cubrir ambos.
+Ninguna.
