@@ -18,6 +18,7 @@ This file is the operational playbook for agents. Use linked docs for deeper con
 - **Architecture decisions (why):** `docs/adrs/`
 - **Database model:** `database/docs/data-model.md`, `database/README.md`
 - **Infrastructure:** `infra/docs/infrastructure.md`
+- **Design system (tokens, components, a11y):** `frontend/DESIGN.md` — authoritative for all UI work; consume semantic tokens, never invent values.
 
 Read these before structural changes.
 
@@ -71,6 +72,7 @@ cd frontend && pnpm audit
 - **Next.js 16:** check `frontend/node_modules/next/dist/docs/` when touching framework behavior.
 - **Frontend conventions:** server components by default; user-facing text in Spanish (tuteo); server-side calls use internal URLs and browser calls use `NEXT_PUBLIC_*`.
 - **`db-init` ordering:** GoTrue migrations must run before `baseline.sql`; `make dev` must be up first.
+- **Design tokens are generated:** if you edit `frontend/DESIGN.md`, run `make tokens` and commit `frontend/src/app/tokens.css` and `frontend/src/design/tokens.json`. CI (`pnpm design:check`) fails if they drift.
 
 ## Testing conventions
 
