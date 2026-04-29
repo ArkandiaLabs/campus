@@ -29,6 +29,7 @@ db-migrate:
 	$(DBEXEC) < database/migrations/003_create_ed_content_progress.sql
 	$(DBEXEC) < database/migrations/004_enable_rls_campus.sql
 	$(DBEXEC) < database/migrations/005_drop_ed_content_progress.sql
+	$(DBEXEC) < database/migrations/006_sessions_content_link.sql
 
 db-seed:
 	$(DBEXEC) < database/seeds/seed.sql
