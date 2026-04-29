@@ -75,9 +75,9 @@ ed_content (session_id = $1)
 - `database/docs/data-model.md` — agregar `ed_session.description` y `ed_content.session_id` al diagrama.
 
 **Verificación:**
-- [ ] `make db-init && make db-seed` sin error.
-- [ ] `SELECT session_id, count(*) FROM ed_content GROUP BY session_id;` — 5 filas con session_id, 2 con NULL.
-- [ ] `SELECT * FROM ed_session WHERE description IS NOT NULL;` — no retorna nada (description se agrega vacía en seed, se puede actualizar manualmente).
+- [x] `make db-init && make db-seed` sin error.
+- [x] `SELECT session_id, count(*) FROM ed_content GROUP BY session_id;` — 5 filas con session_id, 2 con NULL.
+- [x] `SELECT * FROM ed_session WHERE description IS NOT NULL;` — no retorna nada (description se agrega vacía en seed, se puede actualizar manualmente).
 
 ### Fase 2: Backend — modelo y `OfferingDetail`
 
@@ -94,8 +94,8 @@ ed_content (session_id = $1)
 - `backend/tests/test_catalog.py`: actualizar `FakeCatalogRepo` + `SAMPLE_DETAIL`; agregar test con mezcla de sessions y general_resources.
 
 **Verificación:**
-- [ ] `uv run pytest tests/test_catalog.py` pasa.
-- [ ] `GET /api/v1/catalog/<id>` retorna `{ sessions: [...], general_resources: [...] }` sin `contents`.
+- [x] `uv run pytest tests/test_catalog.py` pasa.
+- [x] `GET /api/v1/catalog/<id>` retorna `{ sessions: [...], general_resources: [...] }` sin `contents`.
 
 ### Fase 3: Backend — endpoint de detalle de sesión
 
@@ -110,8 +110,8 @@ ed_content (session_id = $1)
 - `backend/tests/test_catalog.py`: tests 200 (con contenido), 404 (sesión ajena o inexistente), 401 (sin token).
 
 **Verificación:**
-- [ ] `uv run pytest -v` pasa; cobertura de 404 para sesión de workshop no comprado.
-- [ ] `uv run ruff check app tests && uv run pyright` limpio.
+- [x] `uv run pytest -v` pasa; cobertura de 404 para sesión de workshop no comprado.
+- [x] `uv run ruff check app tests && uv run pyright` limpio.
 
 ### Fase 4: Frontend — tipos y API client
 

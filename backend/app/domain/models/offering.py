@@ -27,6 +27,22 @@ class ContentItem(BaseModel):
     is_preview: bool
 
 
+class SessionSummary(BaseModel):
+    id: UUID
+    title: str
+    scheduled_at: datetime | None
+    duration_minutes: int | None
+
+
+class SessionDetail(BaseModel):
+    id: UUID
+    title: str
+    description: str | None
+    scheduled_at: datetime | None
+    duration_minutes: int | None
+    contents: list[ContentItem]
+
+
 class OfferingDetail(BaseModel):
     id: UUID
     title: str
@@ -34,4 +50,5 @@ class OfferingDetail(BaseModel):
     cohort_title: str | None
     start_date: date | None
     end_date: date | None
-    contents: list[ContentItem]
+    sessions: list[SessionSummary]
+    general_resources: list[ContentItem]

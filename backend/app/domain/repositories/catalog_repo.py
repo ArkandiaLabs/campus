@@ -1,6 +1,6 @@
 from typing import Protocol
 
-from app.domain.models.offering import OfferingDetail, UserOffering
+from app.domain.models.offering import OfferingDetail, SessionDetail, UserOffering
 
 
 class CatalogRepository(Protocol):
@@ -9,3 +9,5 @@ class CatalogRepository(Protocol):
     async def get_offering_detail(
         self, user_id: str, offering_id: str
     ) -> OfferingDetail | None: ...
+
+    async def get_session_detail(self, user_id: str, session_id: str) -> SessionDetail | None: ...
