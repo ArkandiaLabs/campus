@@ -20,10 +20,12 @@ export default function OfferingCard({ offering }: OfferingCardProps) {
   return (
     <Link
       href={`/products/${offering.id}`}
-      className="block border border-gray-200 rounded-lg p-5 hover:border-blue-600 hover:shadow-sm transition-all"
+      className="block bg-surface rounded-md p-md border border-secondary/20 hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring transition-colors"
     >
-      <h2 className="text-base font-semibold text-gray-900 mb-1">{offering.title}</h2>
-      {dateRange && <p className="text-sm text-gray-500">{dateRange}</p>}
+      <h2 className="font-h2 text-h2 text-foreground mb-xs">{offering.title}</h2>
+      {dateRange && (
+        <p className="font-label text-label text-secondary">{dateRange}</p>
+      )}
     </Link>
   );
 }
