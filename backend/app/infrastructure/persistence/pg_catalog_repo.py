@@ -1,6 +1,12 @@
 import asyncpg
 
-from app.domain.models.offering import ContentItem, OfferingDetail, UserOffering
+from app.domain.models.offering import (
+    ContentItem,
+    OfferingDetail,
+    SessionDetail,
+    SessionSummary,
+    UserOffering,
+)
 
 
 class PgCatalogRepository:
@@ -61,22 +67,32 @@ class PgCatalogRepository:
                     cohort_title=offering_row["cohort_title"],
                     start_date=offering_row["start_date"],
                     end_date=offering_row["end_date"],
-                    contents=[],
+                    sessions=[],
+                    general_resources=[],
                 )
 
-            content_rows = await conn.fetch(
+            session_rows = await conn.fetch(
+                """
+                SELECT id, title, scheduled_at, duration_minutes
+                FROM ed_session
+                WHERE cohort_id = $1
+                ORDER BY scheduled_at ASC NULLS LAST, id ASC
+                """,
+                cohort_id,
+            )
+
+            resource_rows = await conn.fetch(
                 """
                 SELECT edc.id, edc.title, edc.description,
                        edc.content_type, edc.content_url,
                        edc.position, edc.is_preview
                 FROM ed_content edc
                 WHERE edc.cohort_id = $1
+                  AND edc.session_id IS NULL
                 ORDER BY edc.position ASC
                 """,
                 cohort_id,
             )
-
-            contents = [ContentItem(**dict(row)) for row in content_rows]
 
             return OfferingDetail(
                 id=offering_row["id"],
@@ -85,5 +101,50 @@ class PgCatalogRepository:
                 cohort_title=offering_row["cohort_title"],
                 start_date=offering_row["start_date"],
                 end_date=offering_row["end_date"],
-                contents=contents,
+                sessions=[SessionSummary(**dict(row)) for row in session_rows],
+                general_resources=[ContentItem(**dict(row)) for row in resource_rows],
+            )
+
+    async def get_session_detail(self, user_id: str, session_id: str) -> SessionDetail | None:
+        async with self._pool.acquire() as conn:
+            session_row = await conn.fetchrow(
+                """
+                SELECT es.id, es.title, es.description,
+                       es.scheduled_at, es.duration_minutes,
+                       es.cohort_id
+                FROM ed_session es
+                JOIN ed_cohort ec ON ec.id = es.cohort_id
+                JOIN core_purchase cp ON cp.cohort_id = ec.id
+                                     AND cp.status = 'completed'
+                JOIN core_client cc ON cc.id = cp.client_id
+                                   AND cc.auth_user_id = $2
+                WHERE es.id = $1
+                LIMIT 1
+                """,
+                session_id,
+                user_id,
+            )
+
+            if session_row is None:
+                return None
+
+            content_rows = await conn.fetch(
+                """
+                SELECT id, title, description, content_type, content_url, position, is_preview
+                FROM ed_content
+                WHERE session_id = $1
+                  AND cohort_id = $2
+                ORDER BY position ASC, id ASC
+                """,
+                session_id,
+                session_row["cohort_id"],
+            )
+
+            return SessionDetail(
+                id=session_row["id"],
+                title=session_row["title"],
+                description=session_row["description"],
+                scheduled_at=session_row["scheduled_at"],
+                duration_minutes=session_row["duration_minutes"],
+                contents=[ContentItem(**dict(row)) for row in content_rows],
             )

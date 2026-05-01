@@ -65,7 +65,23 @@ cd frontend
 pnpm eslint src                 # linting
 pnpm tsc --noEmit               # type checking
 pnpm vitest run                 # tests
+pnpm design:lint                # validate frontend/DESIGN.md
+pnpm design:check               # detect drift between DESIGN.md and tokens.css
 ```
+
+## UI development
+
+The UI is governed by `frontend/DESIGN.md` (warm amber + sapphire system, Aleo headlines, Rubik body).
+
+```bash
+make tokens                     # regenerate tokens.css from DESIGN.md
+```
+
+**Modifying the design system:**
+
+1. Edit `frontend/DESIGN.md` (frontmatter for tokens, prose for rationale).
+2. Run `make tokens` to regenerate `frontend/src/design/tokens.json` (via `@google/design.md` CLI) and `frontend/src/app/tokens.css` (Tailwind v4 `@theme` block).
+3. Commit all three files. CI (`pnpm design:check`) blocks PRs where the generated files drift from DESIGN.md.
 
 ## Adding a New Feature
 

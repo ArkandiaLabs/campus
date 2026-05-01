@@ -18,14 +18,16 @@ export default function Navbar({ userName }: NavbarProps) {
   }
 
   return (
-    <nav className="border-b border-gray-200 bg-white">
-      <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-        <span className="text-lg font-bold text-gray-900 tracking-tight">Arkandia</span>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-600 hidden sm:block">{userName}</span>
+    <nav className="border-b border-secondary/20 bg-surface">
+      <div className="max-w-5xl mx-auto px-md py-sm flex items-center justify-between">
+        <span className="font-h2 text-h2 text-foreground">Arkandia</span>
+        <div className="flex items-center gap-md">
+          <span className="font-label text-label text-secondary hidden sm:block">
+            {userName}
+          </span>
           <button
             onClick={handleLogout}
-            className="text-sm text-blue-600 hover:underline"
+            className="font-label text-label rounded-sm bg-primary text-on-primary px-md min-h-11 hover:bg-primary-hover active:bg-primary-active focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring transition-colors"
           >
             Cerrar sesi&oacute;n
           </button>

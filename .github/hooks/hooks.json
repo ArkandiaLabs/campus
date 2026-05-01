@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      {
+        "type": "command",
+        "bash": "./scripts/agent-hooks/pre-tool-secret-guard.sh",
+        "cwd": ".",
+        "timeoutSec": 15
+      }
+    ],
+    "postToolUse": [
+      {
+        "type": "command",
+        "bash": "./scripts/agent-hooks/post-tool-quality-log.sh",
+        "cwd": ".",
+        "timeoutSec": 120
+      }
+    ]
+  }
+}

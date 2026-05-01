@@ -3,7 +3,8 @@
        typecheck typecheck-backend typecheck-frontend \
        test test-backend test-frontend \
        check fmt audit audit-backend audit-frontend \
-       arch arch-backend hooks
+       arch arch-backend hooks \
+	   tokens design-lint design-check
 
 # Run psql inside the db container (no local psql required)
 DBEXEC = docker compose exec -T db psql -U postgres
@@ -29,6 +30,7 @@ db-migrate:
 	$(DBEXEC) < database/migrations/003_create_ed_content_progress.sql
 	$(DBEXEC) < database/migrations/004_enable_rls_campus.sql
 	$(DBEXEC) < database/migrations/005_drop_ed_content_progress.sql
+	$(DBEXEC) < database/migrations/006_sessions_content_link.sql
 
 db-seed:
 	$(DBEXEC) < database/seeds/seed.sql
@@ -56,6 +58,17 @@ typecheck-backend:
 typecheck-frontend:
 	cd frontend && pnpm run typecheck
 
+# ─── Design system ───────────────────────────────────────────────────────────
+
+tokens:
+	cd frontend && pnpm design:tokens
+
+design-lint:
+	cd frontend && pnpm design:lint
+
+design-check:
+	cd frontend && pnpm design:check
+
 # ─── Test ────────────────────────────────────────────────────────────────────
 
 test: test-backend test-frontend
@@ -68,7 +81,7 @@ test-frontend:
 
 # ─── All checks ──────────────────────────────────────────────────────────────
 
-check: lint typecheck test
+check: lint typecheck test design-lint
 
 # ─── Format (auto-fix) ──────────────────────────────────────────────────────
 

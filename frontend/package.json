@@ -8,7 +8,11 @@
     "start": "next start",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "design:export": "npx --yes @google/design.md@latest export --format dtcg DESIGN.md > src/design/tokens.json",
+    "design:lint": "npx --yes @google/design.md@latest lint DESIGN.md",
+    "design:tokens": "pnpm design:export && node scripts/generate-tokens.mjs",
+    "design:check": "pnpm design:tokens && git diff --exit-code src/app/tokens.css src/design/tokens.json"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.0",
@@ -33,13 +37,15 @@
     "eslint-config-next": "^16.2.2",
     "jsdom": "^29.0.1",
     "tailwindcss": "^4",
+    "@tailwindcss/vite": "^4.2.4",
     "typescript": "^5",
     "vite": "^8.0.9",
     "vitest": "^4.1.2"
   },
   "pnpm": {
     "overrides": {
-      "vite": ">=8.0.5"
+      "vite": ">=8.0.5",
+      "postcss": ">=8.5.10"
     }
   }
 }

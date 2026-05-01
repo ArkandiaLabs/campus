@@ -12,6 +12,7 @@ erDiagram
     core_offering ||--o{ ed_cohort : "offering_id"
     ed_cohort ||--o{ core_purchase : "cohort_id"
     ed_cohort ||--o{ ed_content : "cohort_id"
+    ed_session ||--o{ ed_content : "session_id"
     ed_cohort ||--o{ ed_session : "cohort_id"
     ed_cohort ||--o{ ed_participant : "cohort_id"
     core_client ||--o{ ed_participant : "client_id"
@@ -93,6 +94,7 @@ erDiagram
     ed_content {
         uuid id PK
         uuid cohort_id FK
+        uuid session_id FK
         text title
         text description
         text content_type
@@ -105,6 +107,7 @@ erDiagram
         uuid id PK
         uuid cohort_id FK
         text title
+        text description
         timestamptz scheduled_at
         integer duration_minutes
         text zoom_meeting_id
@@ -167,12 +170,14 @@ erDiagram
 **`ed_content`** — Content items belonging to a cohort.
 
 - Types: `video`, `download`, `link`
+- `session_id`: nullable FK to `ed_session` — NULL means general cohort resource, non-NULL means session-specific content
 - `position`: integer for display ordering within a cohort
 - `is_preview`: whether the item is available as a free preview
-- Indexed on `(cohort_id, position)` for ordered retrieval
+- Indexed on `(cohort_id, position)` for ordered retrieval; also indexed on `session_id`
 
 **`ed_session`** — Scheduled or recorded live sessions within a cohort.
 
+- `description`: optional text description for the session
 - Zoom integration: `zoom_meeting_id`, `zoom_meeting_url`
 - `scheduled_at` and `duration_minutes` for calendar context
 
