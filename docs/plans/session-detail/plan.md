@@ -135,6 +135,10 @@ Toda llamada al backend debe enviar `Authorization: Bearer <jwt>`. El JWT se obt
 
 ### Fase 5: Frontend — página del workshop agrupada
 
+**Referencia visual** (objetivo a implementar):
+
+![Mockup de la página de detalle de workshop con título, descripción, lista de sesiones clicables y sección de recursos generales al final](./workshop-detail.png)
+
 **Endpoint que consume:** `GET /api/v1/catalog/{id}` → `OfferingDetail` (`sessions[]` + `generalResources[]`). Llamado desde el server component vía `getOffering(id)` (Fase 4). 404 del backend → `notFound()` de Next; 401 → redirect a `/login` siguiendo el patrón existente de la página.
 
 **Spec:** [`session-ui-detail-spec.md`](./session-ui-detail-spec.md) — Pantalla A (`§2.1`), componentes `SessionCard` y `EmptyState` (`§3`), tokens y densidad (`§4`–`§6`), responsive (`§9`), a11y (`§10`), notas de implementación (`§11`). Mapear roles de color y niveles tipográficos a los tokens semánticos de `frontend/DESIGN.md`; nada de valores hardcodeados.
@@ -154,6 +158,10 @@ Toda llamada al backend debe enviar `Authorization: Bearer <jwt>`. El JWT se obt
 - [ ] Manual: a 320 / 768 / 1280 px se mantiene columna única, padding apropiado y max-width de texto cómodo (spec §9).
 
 ### Fase 6: Frontend — página de detalle de sesión
+
+**Referencia visual** (objetivo a implementar):
+
+![Mockup de la página de detalle de sesión con BackLink, título y metadatos, reproductor de video con fallback, descripción y lista de recursos de la sesión](./session-detail.png)
 
 **Endpoint que consume:** `GET /api/v1/catalog/sessions/{sessionId}` → `SessionDetail`. Llamado desde el server component vía `getSession(sessionId)` (Fase 4). El backend ya aplica access control (devuelve 404 si la sesión no pertenece a un workshop comprado por el usuario), así que el frontend solo propaga: 404 → `notFound()`; 401 → redirect a `/login`.
 
