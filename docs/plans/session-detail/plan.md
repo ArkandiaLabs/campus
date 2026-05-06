@@ -56,6 +56,7 @@ ed_content (session_id = $1)
 7. RLS: `ed_session` no tiene RLS (migration 004 solo cubre `ed_content`). Access control se hace a nivel de app en el query de detalle de sesión — suficiente mientras el backend corre con permisos de servicio.
 8. API: extender `/catalog/{id}` con `sessions[]` + `general_resources[]`; agregar `GET /catalog/sessions/{session_id}`.
 9. `ed_session.description` se agrega via migración.
+10. **UI:** la especificación visual y de interacción de las páginas de workshop y sesión vive en [`session-ui-detail-spec.md`](./session-ui-detail-spec.md). Las fases 5 y 6 implementan esa spec; las decisiones puntuales de anatomía, estados, tokens, copy y a11y se consultan ahí en lugar de duplicarse en este plan.
 
 ## Fases de implementación
 
@@ -126,30 +127,46 @@ ed_content (session_id = $1)
 
 ### Fase 5: Frontend — página del workshop agrupada
 
+**Spec:** [`session-ui-detail-spec.md`](./session-ui-detail-spec.md) — Pantalla A (`§2.1`), componentes `SessionCard` y `EmptyState` (`§3`), tokens y densidad (`§4`–`§6`), responsive (`§9`), a11y (`§10`), notas de implementación (`§11`). Mapear roles de color y niveles tipográficos a los tokens semánticos de `frontend/DESIGN.md`; nada de valores hardcodeados.
+
 **Cambios:**
-- `frontend/src/app/products/[id]/page.tsx`: render `sessions[]` como lista de `<SessionCard>` + sección "Recursos generales" con `<ContentList generalResources={…} />`.
-- `frontend/src/components/SessionCard.tsx` (nuevo): título, fecha, duración. `<Link href="/products/{offeringId}/sessions/{session.id}">`.
+- `frontend/src/app/products/[id]/page.tsx`: layout en columna única centrada con encabezado (título + descripción del workshop), sección "Sesiones" y sección "Recursos generales". Cada sección y su título se omiten cuando su array está vacío (sin renderizar el `<h2>` solo); en lugar de la lista de sesiones vacía, mostrar el empty state inline ("Aún no hay sesiones publicadas.").
+- `frontend/src/components/SessionCard.tsx` (nuevo): `<Link href="/products/{offeringId}/sessions/{session.id}">` con título, línea de metadatos (fecha + duración o fallback "Sin fecha programada") y chevron derecho. Estados default/hover/focus/active y comportamiento de card-link según spec §3.
+- Helper de fecha (en `frontend/src/lib/format.ts` o equivalente): `Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })`, con fallback explícito para `null`. No hardcodear formatos.
+- Toda la copy en español tuteo.
 
 **Verificación:**
 - [ ] `pnpm eslint src && pnpm tsc --noEmit` limpio.
-- [ ] Manual: dashboard → workshop muestra sesiones clicables + recursos generales separados.
+- [ ] `pnpm design:check` pasa (tokens semánticos, no valores crudos).
+- [ ] Manual: dashboard → workshop muestra sesiones clicables + sección de recursos generales separada al final.
+- [ ] Manual: workshop sin sesiones publicadas muestra el empty state inline; workshop sin recursos generales no renderiza la sección (ni su título).
+- [ ] Manual: focus ring visible al tabular sobre `<SessionCard>`; toda la card es target táctil ≥ 44px.
+- [ ] Manual: a 320 / 768 / 1280 px se mantiene columna única, padding apropiado y max-width de texto cómodo (spec §9).
 
 ### Fase 6: Frontend — página de detalle de sesión
 
+**Spec:** [`session-ui-detail-spec.md`](./session-ui-detail-spec.md) — Pantalla B (`§2.2`), componentes `BackLink`, `VimeoPlayer`, `ContentList` (`§3`), tokens y densidad (`§4`–`§6`), responsive (`§9`), a11y (`§10`), notas (`§11`). El video usa max-width más ancho que el contenedor de texto en desktop (spec §2 notas, §9).
+
 **Cambios:**
-- `frontend/src/app/products/[id]/sessions/[sessionId]/page.tsx` (nuevo): SSR con `createSupabaseServerClient`, fetch `getSession(sessionId)`. Render:
-  1. Link de regreso a `/products/{id}`.
-  2. Título + descripción (si existe).
-  3. `<VimeoPlayer url={videoContent.content_url} />` donde `videoContent = session.contents.find(c => c.content_type === 'video')`.
-  4. `<ContentList>` con `session.contents.filter(c => c.content_type !== 'video')`.
-  5. 404 si `session.contents` no tiene ningún video — mostrar mensaje "Grabación no disponible aún".
-- `frontend/src/components/VimeoPlayer.tsx` (nuevo): extrae ID con `/vimeo\.com\/(\d+)/`; embed `https://player.vimeo.com/video/{id}` en `<iframe className="w-full aspect-video" allow="autoplay; fullscreen">`. Fallback si no hay match: `<p>Video no disponible</p>`.
-- Tests vitest: `VimeoPlayer` (parseo URL con `vimeo.com/{id}` y `player.vimeo.com/video/{id}`, fallback sin ID numérico).
+- `frontend/src/app/products/[id]/sessions/[sessionId]/page.tsx` (nuevo): SSR con `createSupabaseServerClient`, fetch `getSession(sessionId)`. Render según spec §2.2:
+  1. `<BackLink href="/products/{id}">` con label "Volver al workshop".
+  2. Encabezado: título + línea de metadatos (fecha es-CO + duración).
+  3. `<VimeoPlayer url={videoContent?.content_url} title={session.title} />` donde `videoContent = session.contents.find(c => c.content_type === 'video')`. Si no hay video, el componente renderiza el fallback inline; **no** se hace 404 a nivel de ruta.
+  4. Descripción (condicional, solo si `session.description` existe).
+  5. Sección "Recursos de la sesión" con `<ContentList items={session.contents.filter(c => c.content_type !== 'video')} />`, condicional al filtrado no vacío (sección y título omitidos cuando vacío, spec §11.3).
+- `frontend/src/components/VimeoPlayer.tsx` (nuevo): regex `/vimeo\.com\/(\d+)/` para `vimeo.com/{id}` y `player.vimeo.com/video/{id}`. Iframe responsive con aspect ratio 16:9, `title="Grabación: {sessionTitle}"`, `allow="autoplay; fullscreen; picture-in-picture"`. Fallback (URL nula, vacía, o sin match): caja placeholder con texto centrado "Grabación no disponible aún" en color secundario (spec §3 VimeoPlayer).
+- `frontend/src/components/BackLink.tsx` (nuevo, o reutilizar si existe): chevron izquierdo + texto, estilo de link inline (no botón). Estados según spec §3 BackLink.
+- Tests vitest: `VimeoPlayer` (parseo `vimeo.com/{id}`, `player.vimeo.com/video/{id}`, fallback sin ID numérico, fallback con URL `null`/`""`).
+- Toda la copy en español tuteo.
 
 **Verificación:**
 - [ ] `make check` en raíz pasa.
-- [ ] Manual: sesión con video → embed + descripción + recursos. Sesión sin video → mensaje fallback.
-- [ ] Acceso denegado: URL de sesión de workshop no comprado → 404.
+- [ ] `pnpm design:check` pasa.
+- [ ] Manual: sesión con video → embed + descripción (si existe) + recursos. Sesión sin video → fallback inline "Grabación no disponible aún" en lugar del iframe.
+- [ ] Manual: en ≥1024 px el contenedor del video es claramente más ancho que el contenedor de texto.
+- [ ] Manual: orden de tabulación BackLink → links de ContentList; focus rings visibles en todos los interactivos.
+- [ ] Manual: iframe expone `title` descriptivo (verificar en devtools).
+- [ ] Acceso denegado: URL de sesión de workshop no comprado → 404 a nivel de ruta (devuelto por la API).
 
 ## Estrategia de testing
 
