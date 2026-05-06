@@ -7,7 +7,7 @@ interface ContentListProps {
 
 export default function ContentList({ contents }: ContentListProps) {
   return (
-    <ol className="space-y-sm">
+    <ol className="space-y-space-sm">
       {contents.map((item) => {
         const isLink = item.content_type === "link";
         const isVideo = item.content_type === "video";
@@ -17,7 +17,7 @@ export default function ContentList({ contents }: ContentListProps) {
             key={item.id}
             className="bg-surface rounded-sm border border-secondary/20"
           >
-            <div className="flex items-center gap-sm p-md min-h-11">
+            <div className="flex items-center gap-space-sm p-space-md min-h-11">
               {isVideo && (
                 <PlayCircle className="w-4 h-4 text-tertiary flex-shrink-0" />
               )}
