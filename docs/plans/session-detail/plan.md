@@ -130,8 +130,8 @@ Toda llamada al backend debe enviar `Authorization: Bearer <jwt>`. El JWT se obt
 - `frontend/src/lib/__tests__/api.test.ts`: tests de `getSession` (header `Authorization` con token, manejo 401, manejo 404 → null).
 
 **Verificación:**
-- [ ] `pnpm vitest run` pasa.
-- [ ] `pnpm tsc --noEmit` limpio.
+- [x] `pnpm vitest run` pasa.
+- [x] `pnpm tsc --noEmit` limpio.
 
 ### Fase 5: Frontend — página del workshop agrupada
 

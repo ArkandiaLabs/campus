@@ -82,8 +82,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
         </div>
 
         {/* Content list */}
-        {offering.contents.length > 0 ? (
-          <ContentList contents={offering.contents} />
+        {offering.general_resources.length > 0 ? (
+          <ContentList contents={offering.general_resources} />
         ) : (
           <p className="text-gray-500 text-sm">
             Aun no hay contenido disponible para este workshop.
