@@ -30,11 +30,11 @@
   --color-focus-ring: #3b86fb;
 
   /* Spacing */
-  --spacing-xs: 4px;
-  --spacing-sm: 8px;
-  --spacing-md: 16px;
-  --spacing-lg: 32px;
-  --spacing-xl: 64px;
+  --spacing-space-xs: 4px;
+  --spacing-space-sm: 8px;
+  --spacing-space-md: 16px;
+  --spacing-space-lg: 32px;
+  --spacing-space-xl: 64px;
 
   /* Radius */
   --radius-sm: 3px;

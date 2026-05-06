@@ -20,6 +20,22 @@ export interface ContentItem {
   is_preview: boolean;
 }
 
+export interface SessionSummary {
+  id: string;
+  title: string;
+  scheduled_at: string | null;
+  duration_minutes: number | null;
+}
+
+export interface SessionDetail {
+  id: string;
+  title: string;
+  description: string | null;
+  scheduled_at: string | null;
+  duration_minutes: number | null;
+  contents: ContentItem[];
+}
+
 export interface OfferingDetail {
   id: string;
   title: string;
@@ -27,5 +43,6 @@ export interface OfferingDetail {
   cohort_title: string | null;
   start_date: string | null;
   end_date: string | null;
-  contents: ContentItem[];
+  sessions: SessionSummary[];
+  general_resources: ContentItem[];
 }

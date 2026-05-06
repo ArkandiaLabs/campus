@@ -62,18 +62,20 @@ if $is_relevant_tool; then
   declare -a PYTHON_FILES=()
   declare -a FRONTEND_TS_FILES=()
 
-  for file in "${CHANGED_FILES[@]}"; do
-    [[ -f "$file" ]] || continue
+  if [[ ${#CHANGED_FILES[@]} -gt 0 ]]; then
+    for file in "${CHANGED_FILES[@]}"; do
+      [[ -f "$file" ]] || continue
 
-    if [[ "$file" =~ ^backend/.*\.py$ ]]; then
-      PYTHON_FILES+=("${file#backend/}")
-      continue
-    fi
+      if [[ "$file" =~ ^backend/.*\.py$ ]]; then
+        PYTHON_FILES+=("${file#backend/}")
+        continue
+      fi
 
-    if [[ "$file" =~ ^frontend/.*\.(ts|tsx)$ ]]; then
-      FRONTEND_TS_FILES+=("${file#frontend/}")
-    fi
-  done
+      if [[ "$file" =~ ^frontend/.*\.(ts|tsx)$ ]]; then
+        FRONTEND_TS_FILES+=("${file#frontend/}")
+      fi
+    done
+  fi
 
   if [[ ${#PYTHON_FILES[@]} -gt 0 ]]; then
     if command -v uv >/dev/null 2>&1 && (cd backend && uv run ruff format "${PYTHON_FILES[@]}" >/dev/null 2>&1); then

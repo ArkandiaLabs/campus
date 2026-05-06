@@ -68,11 +68,11 @@ rounded:
   lg: 12px
 
 spacing:
-  xs: 4px
-  sm: 8px
-  md: 16px
-  lg: 32px
-  xl: 64px
+  space-xs: 4px
+  space-sm: 8px
+  space-md: 16px
+  space-lg: 32px
+  space-xl: 64px
 ---
 
 ## Overview
@@ -114,7 +114,7 @@ Pair Aleo headlines with Rubik body. Never use Aleo for body copy or Rubik for h
 
 ## Layout
 
-Spacing follows an 8px grid via the `spacing` tokens, with a 4px half-step (`xs`) for micro-adjustments. Content breathes at moderate density.
+Spacing follows an 8px grid via the `spacing` tokens, with a 4px half-step (`space-xs`) for micro-adjustments. Token names are prefixed with `space-` so they don't shadow Tailwind's container size scale (`max-w-sm`, `max-w-md`, …). Use them as `gap-space-md`, `p-space-md`, `mb-space-xs`, etc. Content breathes at moderate density.
 
 Components must be fluid by default. Assume any component renders between 320px and 1920px wide. Avoid component-local breakpoints; prefer container queries and fluid units (`clamp()`, `%`, `rem`) so behavior scales without media query proliferation.
 

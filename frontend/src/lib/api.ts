@@ -1,5 +1,5 @@
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
-import type { OfferingDetail, UserOffering } from "@/types";
+import type { OfferingDetail, SessionDetail, UserOffering } from "@/types";
 
 export function getApiUrl(): string {
   return (
@@ -11,6 +11,10 @@ export function getApiUrl(): string {
 
 const API_URL = getApiUrl();
 
+interface RequestOptions extends RequestInit {
+  notFoundAsNull?: boolean;
+}
+
 class ApiClient {
   private async getToken(): Promise<string | null> {
     const supabase = createSupabaseBrowserClient();
@@ -20,7 +24,7 @@ class ApiClient {
     return session?.access_token ?? null;
   }
 
-  private async request<T>(path: string, init?: RequestInit): Promise<T> {
+  private async request<T>(path: string, init?: RequestOptions): Promise<T> {
     const token = await this.getToken();
 
     const headers: HeadersInit = {
@@ -34,6 +38,10 @@ class ApiClient {
     if (response.status === 401) {
       window.location.href = "/login";
       throw new Error("Unauthorized");
+    }
+
+    if (response.status === 404 && init?.notFoundAsNull) {
+      return null as T;
     }
 
     if (!response.ok) {
@@ -54,6 +62,13 @@ class ApiClient {
 
   async getOffering(id: string): Promise<OfferingDetail> {
     return this.request<OfferingDetail>(`/api/v1/catalog/${id}`);
+  }
+
+  async getSession(sessionId: string): Promise<SessionDetail | null> {
+    return this.request<SessionDetail | null>(
+      `/api/v1/catalog/sessions/${sessionId}`,
+      { notFoundAsNull: true }
+    );
   }
 }
 
