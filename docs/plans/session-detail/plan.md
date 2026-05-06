@@ -180,8 +180,8 @@ Toda llamada al backend debe enviar `Authorization: Bearer <jwt>`. El JWT se obt
 - Toda la copy en español tuteo.
 
 **Verificación:**
-- [ ] `make check` en raíz pasa.
-- [ ] `pnpm design:check` pasa.
+- [x] `make check` en raíz pasa.
+- [x] `pnpm design:check` pasa.
 - [ ] Manual: sesión con video → embed + descripción (si existe) + recursos. Sesión sin video → fallback inline "Grabación no disponible aún" en lugar del iframe.
 - [ ] Manual: en ≥1024 px el contenedor del video es claramente más ancho que el contenedor de texto.
 - [ ] Manual: orden de tabulación BackLink → links de ContentList; focus rings visibles en todos los interactivos.
