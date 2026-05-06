@@ -116,10 +116,18 @@ ed_content (session_id = $1)
 
 ### Fase 4: Frontend — tipos y API client
 
+**Endpoints del backend que consume esta capa:**
+| Método | Ruta | Función expuesta | Retorno |
+|--------|------|-----------------|---------|
+| `GET`  | `/api/v1/catalog/{id}` | `getOffering(id)` | `OfferingDetail` con `sessions[]` + `generalResources[]` |
+| `GET`  | `/api/v1/catalog/sessions/{sessionId}` | `getSession(sessionId)` | `SessionDetail` o 404 |
+
+Toda llamada al backend debe enviar `Authorization: Bearer <jwt>`. El JWT se obtiene del helper de auth existente (mismo patrón que `getCatalog` / `getOffering` actuales); el plan no asume nada sobre el proveedor de auth.
+
 **Cambios:**
 - `frontend/src/types/index.ts`: agregar `SessionSummary`, `SessionDetail`; actualizar `OfferingDetail` (reemplazar `contents` por `sessions` + `generalResources`).
-- `frontend/src/lib/api.ts`: actualizar `getOffering`; agregar `getSession(sessionId: string): Promise<SessionDetail>`.
-- `frontend/src/lib/__tests__/api.test.ts`: tests de `getSession` (token correcto, 401, 404).
+- `frontend/src/lib/api.ts`: actualizar `getOffering` al nuevo shape; agregar `getSession(sessionId: string): Promise<SessionDetail>` apuntando a `/api/v1/catalog/sessions/{sessionId}`. Mapear `404 → null` siguiendo el patrón existente para que la página pueda llamar `notFound()`.
+- `frontend/src/lib/__tests__/api.test.ts`: tests de `getSession` (header `Authorization` con token, manejo 401, manejo 404 → null).
 
 **Verificación:**
 - [ ] `pnpm vitest run` pasa.
@@ -127,10 +135,12 @@ ed_content (session_id = $1)
 
 ### Fase 5: Frontend — página del workshop agrupada
 
+**Endpoint que consume:** `GET /api/v1/catalog/{id}` → `OfferingDetail` (`sessions[]` + `generalResources[]`). Llamado desde el server component vía `getOffering(id)` (Fase 4). 404 del backend → `notFound()` de Next; 401 → redirect a `/login` siguiendo el patrón existente de la página.
+
 **Spec:** [`session-ui-detail-spec.md`](./session-ui-detail-spec.md) — Pantalla A (`§2.1`), componentes `SessionCard` y `EmptyState` (`§3`), tokens y densidad (`§4`–`§6`), responsive (`§9`), a11y (`§10`), notas de implementación (`§11`). Mapear roles de color y niveles tipográficos a los tokens semánticos de `frontend/DESIGN.md`; nada de valores hardcodeados.
 
 **Cambios:**
-- `frontend/src/app/products/[id]/page.tsx`: layout en columna única centrada con encabezado (título + descripción del workshop), sección "Sesiones" y sección "Recursos generales". Cada sección y su título se omiten cuando su array está vacío (sin renderizar el `<h2>` solo); en lugar de la lista de sesiones vacía, mostrar el empty state inline ("Aún no hay sesiones publicadas.").
+- `frontend/src/app/products/[id]/page.tsx`: actualizar el render del payload nuevo. Layout en columna única centrada con encabezado (título + descripción del workshop), sección "Sesiones" y sección "Recursos generales". Cada sección y su título se omiten cuando su array está vacío (sin renderizar el `<h2>` solo); en lugar de la lista de sesiones vacía, mostrar el empty state inline ("Aún no hay sesiones publicadas.").
 - `frontend/src/components/SessionCard.tsx` (nuevo): `<Link href="/products/{offeringId}/sessions/{session.id}">` con título, línea de metadatos (fecha + duración o fallback "Sin fecha programada") y chevron derecho. Estados default/hover/focus/active y comportamiento de card-link según spec §3.
 - Helper de fecha (en `frontend/src/lib/format.ts` o equivalente): `Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })`, con fallback explícito para `null`. No hardcodear formatos.
 - Toda la copy en español tuteo.
@@ -145,10 +155,12 @@ ed_content (session_id = $1)
 
 ### Fase 6: Frontend — página de detalle de sesión
 
+**Endpoint que consume:** `GET /api/v1/catalog/sessions/{sessionId}` → `SessionDetail`. Llamado desde el server component vía `getSession(sessionId)` (Fase 4). El backend ya aplica access control (devuelve 404 si la sesión no pertenece a un workshop comprado por el usuario), así que el frontend solo propaga: 404 → `notFound()`; 401 → redirect a `/login`.
+
 **Spec:** [`session-ui-detail-spec.md`](./session-ui-detail-spec.md) — Pantalla B (`§2.2`), componentes `BackLink`, `VimeoPlayer`, `ContentList` (`§3`), tokens y densidad (`§4`–`§6`), responsive (`§9`), a11y (`§10`), notas (`§11`). El video usa max-width más ancho que el contenedor de texto en desktop (spec §2 notas, §9).
 
 **Cambios:**
-- `frontend/src/app/products/[id]/sessions/[sessionId]/page.tsx` (nuevo): SSR con `createSupabaseServerClient`, fetch `getSession(sessionId)`. Render según spec §2.2:
+- `frontend/src/app/products/[id]/sessions/[sessionId]/page.tsx` (nuevo): server component que sigue el mismo patrón de auth/fetch que `products/[id]/page.tsx` y consume `getSession(sessionId)`. Render según spec §2.2:
   1. `<BackLink href="/products/{id}">` con label "Volver al workshop".
   2. Encabezado: título + línea de metadatos (fecha es-CO + duración).
   3. `<VimeoPlayer url={videoContent?.content_url} title={session.title} />` donde `videoContent = session.contents.find(c => c.content_type === 'video')`. Si no hay video, el componente renderiza el fallback inline; **no** se hace 404 a nivel de ruta.
@@ -166,7 +178,7 @@ ed_content (session_id = $1)
 - [ ] Manual: en ≥1024 px el contenedor del video es claramente más ancho que el contenedor de texto.
 - [ ] Manual: orden de tabulación BackLink → links de ContentList; focus rings visibles en todos los interactivos.
 - [ ] Manual: iframe expone `title` descriptivo (verificar en devtools).
-- [ ] Acceso denegado: URL de sesión de workshop no comprado → 404 a nivel de ruta (devuelto por la API).
+- [ ] Acceso denegado: URL de sesión de workshop no comprado → el endpoint devuelve 404 y la ruta hace `notFound()`.
 
 ## Estrategia de testing
 
