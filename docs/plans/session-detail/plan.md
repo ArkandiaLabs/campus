@@ -150,8 +150,8 @@ Toda llamada al backend debe enviar `Authorization: Bearer <jwt>`. El JWT se obt
 - Toda la copy en español tuteo.
 
 **Verificación:**
-- [ ] `pnpm eslint src && pnpm tsc --noEmit` limpio.
-- [ ] `pnpm design:check` pasa (tokens semánticos, no valores crudos).
+- [x] `pnpm eslint src && pnpm tsc --noEmit` limpio.
+- [x] `pnpm design:check` pasa (tokens semánticos, no valores crudos).
 - [ ] Manual: dashboard → workshop muestra sesiones clicables + sección de recursos generales separada al final.
 - [ ] Manual: workshop sin sesiones publicadas muestra el empty state inline; workshop sin recursos generales no renderiza la sección (ni su título).
 - [ ] Manual: focus ring visible al tabular sobre `<SessionCard>`; toda la card es target táctil ≥ 44px.
